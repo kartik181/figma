@@ -2,6 +2,7 @@ import { useStorage } from "@liveblocks/react";
 import { memo } from "react";
 import { LayerType } from "~/types";
 import { colorToCss } from "~/utils";
+import Rectangle from "./Rectangle";
 
 const LayerComponent = memo(({ id }: { id: string }) => {
   const layer = useStorage((root) => root.layers.get(id));
@@ -9,11 +10,12 @@ const LayerComponent = memo(({ id }: { id: string }) => {
     return null;
   }
 
-  return (
-    <g>
-      <rect x={0} y={0} width={200} height={200} fill="#FF0000" />
-    </g>
-  );
+  switch (layer.type) {
+    case LayerType.Rectangle:
+      return <Rectangle id={id} layer={layer} />;
+    default:
+      return null;
+  }
 });
 
 LayerComponent.displayName = "LayerComponent";

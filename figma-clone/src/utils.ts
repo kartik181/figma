@@ -1,4 +1,4 @@
-import type { Color } from "./types";
+import type { Camera, Color, Point } from "./types";
 
 
 export function colorToCss(color: Color) {
@@ -14,4 +14,12 @@ export function hexToRgb(hex: string): Color {
   
   const COLORS = ["#DC2626", "#D97706", "#059669", "#7C3AED", "#DB2777"];
 
-  
+  export const pointerEventToCanvasPoint = (
+    e: React.PointerEvent,
+    camera: Camera,
+  ): Point => {
+    return {
+      x: Math.round(e.clientX) - camera.x,
+      y: Math.round(e.clientY) - camera.y,
+    };
+  };
