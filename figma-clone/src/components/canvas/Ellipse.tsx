@@ -1,39 +1,41 @@
-import type { RectangleLayer } from "~/types";
+import type { EllipseLayer } from "~/types";
 import { colorToCss } from "~/utils";
 
-export default function Rectangle({
+export default function Ellipse({
   id,
   layer,
   // onPointerDown,
 }: {
   id: string;
-  layer: RectangleLayer;
+  layer: EllipseLayer;
   // onPointerDown: (e: React.PointerEvent, layerId: string) => void;
 }) {
-  const { x, y, width, height, fill, stroke, opacity, cornerRadius } = layer;
+  const { x, y, width, height, fill, stroke, opacity } = layer;
 
   return (
     <g className="group">
-      <rect
+      <ellipse
         style={{ transform: `translate(${x}px, ${y}px)` }}
-        width={width}
-        height={height}
+        cx={width / 2}
+        cy={height / 2}
+        rx={width / 2}
+        ry={height / 2}
         fill="none"
         stroke="#0b99ff"
         strokeWidth="4"
         className="pointer-events-none opacity-0 group-hover:opacity-100"
       />
-      <rect
+      <ellipse
         //  onPointerDown={(e) => onPointerDown(e, id)}
         style={{ transform: `translate(${x}px, ${y}px)` }}
-        width={width}
-        height={height}
         fill={fill ? colorToCss(fill) : "#CCC"}
-        strokeWidth={1}
         stroke={stroke ? colorToCss(stroke) : "#CCC"}
+        cx={width / 2}
+        cy={height / 2}
+        rx={width / 2}
+        ry={height / 2}
+        strokeWidth="1"
         opacity={`${opacity ?? 100}%`}
-        rx={cornerRadius ?? 0}
-        ry={cornerRadius ?? 0}
       />
     </g>
   );

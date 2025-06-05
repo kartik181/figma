@@ -3,15 +3,19 @@ import { useMutation, useStorage, useStorageRoot } from "@liveblocks/react";
 import { colorToCss, pointerEventToCanvasPoint } from "~/utils";
 import LayerComponent from "./LayerComponent";
 import {
+  CanvasMode,
   LayerType,
   type Camera,
+  type CanvasState,
   type Layer,
   type Point,
   type RectangleLayer,
 } from "~/types";
 import { LiveObject } from "@liveblocks/client";
 import { nanoid } from "nanoid";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import ToolsBar from "../toolsbar/ToolsBar";
+import { set } from "zod";
 
 const MAX_LAYERS = 100;
 
@@ -25,14 +29,19 @@ export default function Canvas() {
     y: 0,
     zoom: 1,
   });
-
-  // 👇 return nothing if storage not yet loaded
+  const [canvasState, setState] = useState<CanvasState>({
+    mode: CanvasMode.None,
+  });
   if (storage === null) return null;
 
   const insertLayer = useMutation(
     (
       { storage, setMyPresence },
-      layerType: LayerType.Ellipse | LayerType.Rectangle | LayerType.Text,
+      layerType:
+        | LayerType.Ellipse
+        | LayerType.Rectangle
+        | LayerType.Text
+        | LayerType.Triangle,
       position: Point,
     ) => {
       const liveLayers = storage.get("layers");
@@ -54,6 +63,28 @@ export default function Canvas() {
           stroke: { r: 217, g: 217, b: 217 },
           opacity: 100,
         });
+      } else if (layerType === LayerType.Ellipse) {
+        layer = new LiveObject<Layer>({
+          type: LayerType.Ellipse,
+          x: position.x,
+          y: position.y,
+          height: 100,
+          width: 100,
+          fill: { r: 217, g: 217, b: 217 },
+          stroke: { r: 217, g: 217, b: 217 },
+          opacity: 100,
+        });
+      } else if (layerType === LayerType.Triangle) {
+        layer = new LiveObject<Layer>({
+          type: LayerType.Triangle,
+          x: position.x,
+          y: position.y,
+          height: 100,
+          width: 100,
+          fill: { r: 217, g: 217, b: 217 },
+          stroke: { r: 217, g: 217, b: 217 },
+          opacity: 100,
+        });
       }
 
       if (layer) {
@@ -65,9 +96,55 @@ export default function Canvas() {
     [],
   );
 
-  const onPointerUp = useMutation(({}, e: React.PointerEvent) => {
-    const point = pointerEventToCanvasPoint(e, camera);
-    insertLayer(LayerType.Rectangle, point);
+  const onPointerUp = useMutation(
+    ({}, e: React.PointerEvent) => {
+      const point = pointerEventToCanvasPoint(e, camera);
+      if (canvasState.mode === CanvasMode.None) {
+        setState({ mode: CanvasMode.None });
+      } else if (canvasState.mode === CanvasMode.Inserting) {
+        insertLayer(canvasState.layerType, point);
+      } else if (canvasState.mode === CanvasMode.Dragging) {
+        setState({ mode: CanvasMode.Dragging, origin: null });
+      }
+    },
+    [setState, insertLayer, canvasState],
+  );
+
+  const onPointerDown = useMutation(
+    ({}, e: React.PointerEvent) => {
+      const point = pointerEventToCanvasPoint(e, camera);
+      if (canvasState.mode === CanvasMode.Dragging) {
+        setState({ mode: CanvasMode.Dragging, origin: point });
+      }
+    },
+    [setState, canvasState.mode, camera],
+  );
+
+  const onPointerMove = useMutation(
+    ({}, e: React.PointerEvent) => {
+      const point = pointerEventToCanvasPoint(e, camera);
+      if (
+        canvasState.mode === CanvasMode.Dragging &&
+        canvasState.origin !== null
+      ) {
+        const deltaX = e.movementX;
+        const deltaY = e.movementY;
+        setCamera((camera) => ({
+          x: camera.x + deltaX,
+          y: camera.y + deltaY,
+          zoom: camera.zoom,
+        }));
+      }
+    },
+    [setState, canvasState, insertLayer],
+  );
+
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    setCamera((camera) => ({
+      x: camera.x - e.deltaX,
+      y: camera.y - e.deltaY,
+      zoom: camera.zoom,
+    }));
   }, []);
 
   return (
@@ -79,8 +156,18 @@ export default function Canvas() {
           }}
           className="h-full w-full touch-none"
         >
-          <svg onPointerUp={onPointerUp} className="h-full w-full">
-            <g>
+          <svg
+            onWheel={onWheel}
+            onPointerUp={onPointerUp}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            className="h-full w-full"
+          >
+            <g
+              style={{
+                transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
+              }}
+            >
               {layersIds?.map((layerId) => (
                 <LayerComponent key={layerId} id={layerId} />
               ))}
@@ -88,6 +175,18 @@ export default function Canvas() {
           </svg>
         </div>
       </main>
+      <ToolsBar
+        canvasState={canvasState}
+        setCanvasState={(newState) => setState(newState as CanvasState)}
+        zoomIn={() => {
+          setCamera((camera) => ({ ...camera, zoom: camera.zoom + 0.1 }));
+        }}
+        zoomOut={() => {
+          setCamera((camera) => ({ ...camera, zoom: camera.zoom - 0.1 }));
+        }}
+        canZoomIn={camera.zoom < 2}
+        canZoomOut={camera.zoom > 0.5}
+      />
     </div>
   );
 }
